@@ -59,6 +59,8 @@ pub const MODE: Mode = Mode {
 pub enum Error<E> {
     /// Late collision
     LateCollision,
+    /// Packet does not fit into buffer because it too small
+    TooLargePacket(u16),
     /// SPI error
     Spi(E),
 }
@@ -348,7 +350,13 @@ where
         let n = status.byte_count() as u16;
         // NOTE exclude the CRC (4 bytes)
         let end = n - Self::CRC_SZ;
-        self.read_buffer_memory(None, &mut buffer[..usize(end)])?;
+        let ret =
+        if usize(end) <= buffer.len() {
+            self.read_buffer_memory(None, &mut buffer[..usize(end)])?;
+            Ok(end)
+        } else {
+            Err(Error::TooLargePacket(end))
+        };
 
         // update ERXRDPT
         // due to Errata issue 11 we must write an odd address to ERXRDPT
@@ -363,7 +371,7 @@ where
             common::ECON2::default().pktdec(1).bits(),
         )?;
 
-        Ok(end)
+        ret
     }
 
     /// Starts the transmission of `bytes`
