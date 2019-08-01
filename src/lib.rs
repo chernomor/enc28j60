@@ -311,12 +311,12 @@ where
         }
     }
 
-    /// Copies a received frame into the specified `buffer`
+    /// Wait frame and copy it into the specified `buffer`
     ///
     /// Returns the size of the frame
     ///
     /// **NOTE** If there's no pending packet this method will *block* until a new packet arrives
-    pub fn receive(&mut self, buffer: &mut [u8]) -> Result<u16, E> {
+    pub fn receive(&mut self, buffer: &mut [u8]) -> Result<u16, Error<E>> {
         // Busy wait for a packet
         loop {
             let eir = common::EIR(self.read_control_register(common::Register::EIR)?);
@@ -324,9 +324,20 @@ where
             // TODO check for error conditions
             debug_assert!(eir.rxerif() == 0);
 
-            if eir.pktif() == 1 {
-                break;
+            match self.receive_nb(buffer) {
+                Ok(0)  => (),
+                Ok(n)  => break Ok(n),
+                Err(e) => break Err(e)
             }
+        }
+    }
+    /// Copies a received frame into the specified `buffer`
+    ///
+    /// Returns the size of the frame
+    pub fn receive_nb(&mut self, buffer: &mut [u8]) -> Result<u16, Error<E>> {
+        let eir = common::EIR(self.read_control_register(common::Register::EIR)?);
+        if eir.pktif() == 0 {
+            return Ok(0);
         }
 
         // prepare to read buffer memory
