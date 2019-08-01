@@ -17,6 +17,8 @@
 
 #![deny(missing_docs)]
 #![deny(warnings)]
+// See https://github.com/rust-embedded/embedded-hal/issues/139 and 135
+#![allow(deprecated)]
 #![no_std]
 
 extern crate byteorder;
