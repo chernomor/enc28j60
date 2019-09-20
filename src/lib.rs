@@ -16,7 +16,7 @@
 //! - [ENC28J60 Rev. B7 Silicon Errata](http://ww1.microchip.com/downloads/en/DeviceDoc/80349b.pdf)
 
 #![deny(missing_docs)]
-#![deny(warnings)]
+//#![deny(warnings)]
 // See https://github.com/rust-embedded/embedded-hal/issues/139 and 135
 #![allow(deprecated)]
 #![no_std]
@@ -33,7 +33,7 @@ use byteorder::{ByteOrder, LE};
 use cast::{u16, usize};
 use hal::blocking;
 use hal::blocking::delay::DelayMs;
-use hal::digital::{InputPin, OutputPin};
+use hal::digital::v2::{InputPin, OutputPin};
 use hal::spi::{Mode, Phase, Polarity};
 
 use traits::U16Ext;
@@ -659,7 +659,7 @@ where
 
     /// Checks if there's any interrupt pending to be processed by polling the INT pin
     pub fn interrupt_pending(&mut self) -> bool {
-        self.int.is_low()
+        self.int.is_low().unwrap_or(false)
     }
 
     /// Stops listening for the specified event
