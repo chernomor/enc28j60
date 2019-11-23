@@ -61,6 +61,8 @@ pub enum Error<E> {
     TooLargePacket(u16),
     /// SPI error
     Spi(E),
+    /// Some transmit error
+    OtherError,
 }
 
 /// Events that the ENC28J60 can notify about via the INT pin
@@ -299,7 +301,7 @@ where
                     Err(Error::LateCollision)
                 } else {
                     // TODO check for other error conditions
-                    unimplemented!()
+                    Err(Error::OtherError)
                 }
             } else {
                 Ok(())
