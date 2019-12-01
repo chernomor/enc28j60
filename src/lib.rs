@@ -170,7 +170,7 @@ where
         if typeid!(RESET == Unconnected) {
             enc28j60.soft_reset()?;
         } else {
-            enc28j60.reset.reset();
+            enc28j60.reset.reset(delay);
         }
 
         // This doesn't work because of a silicon bug; see workaround below
@@ -677,19 +677,22 @@ pub struct Unconnected;
 /// [Implementation detail] Reset pin
 pub unsafe trait ResetPin: 'static {
     #[doc(hidden)]
-    fn reset(&mut self);
+    fn reset<D: DelayMs<u8>>(&mut self, delay: &mut D);
 }
 
 unsafe impl ResetPin for Unconnected {
-    fn reset(&mut self) {}
+    fn reset<D: DelayMs<u8>>(&mut self, delay: &mut D){}
 }
 
 unsafe impl<OP> ResetPin for OP
 where
     OP: OutputPin + 'static,
 {
-    fn reset(&mut self) {
+    fn reset<D: DelayMs<u8>>(&mut self, delay: &mut D)
+    {
         self.set_low();
+        // tRSTLOW must be greater then 400ns
+        delay.delay_ms(1);
         self.set_high();
     }
 }
