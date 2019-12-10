@@ -63,6 +63,8 @@ pub enum Error<E> {
     Spi(E),
     /// Some transmit error
     OtherError,
+    /// The transmit logic is attempting to transmit a packet (It's may be ERRATA 12)
+    TransmitBusy,
 }
 
 /// Events that the ENC28J60 can notify about via the INT pin
@@ -281,8 +283,10 @@ where
     /// Flushes the transmit buffer, ensuring all pending transmissions have completed
     pub fn flush(&mut self) -> Result<(), Error<E>> {
         if self.txnd != NONE {
-            // Wait until transmission finishes
-            while common::ECON1(self.read_control_register(common::Register::ECON1)?).txrts() == 1 {
+            // Do not wait until transmission finishes
+            // ERRATA 12/13?
+            if common::ECON1(self.read_control_register(common::Register::ECON1)?).txrts() == 1 {
+                return Err(Error::TransmitBusy);
             }
 
             // NOTE(volatile) to avoid this value being set *before* the transmission is over
@@ -397,15 +401,18 @@ where
     ///
     /// If `bytes` length is greater than 1514, the maximum frame length allowed by the interface.
     pub fn transmit(&mut self, bytes: &[u8]) -> Result<(), Error<E>> {
-        assert!(bytes.len() <= usize(Self::MAX_FRAME_LENGTH - Self::CRC_SZ));
+        if bytes.len() > usize(Self::MAX_FRAME_LENGTH - Self::CRC_SZ) {
+            return Err(Error::TooLargePacket(Self::MAX_FRAME_LENGTH - Self::CRC_SZ));
+        }
 
         self.flush()?;
 
         let txst = self.txst();
 
-        // work around errata issue 10 by resetting the transmit logic before any every new
+        // work around errata issue 12 by resetting the transmit logic before any every new
         // transmission
         self.bit_field_set(common::Register::ECON1, common::ECON1::mask().txrst())?;
+        // FIXME: is it need delay here?
         self.bit_field_clear(common::Register::ECON1, common::ECON1::mask().txrst())?;
         self.bit_field_clear(common::Register::EIR, {
             let mask = common::EIR::mask();
